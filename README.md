@@ -1,9 +1,9 @@
 # Machine-Learning-Course-Project
 
-## 概述
-本次课程实践的主题是基于序列模型的多变量时序序列预测，主要采用三种方法来实现，分别为:LSTM、Transformer以及xxxx。相关模型和代码在对应的文件夹中。
-## 数据集
-项目使用的数据集来自于[code](https://github.com/zhouhaoyi/Informer2020)，选择里面的ETTh1.csv作为数据集，该数据集包含17420条数据，每条数据均包含8维特征，包括数据点的记录日期 (date)、预测值“油温 (OT)”以及6个不同类型的外部载值，Train/Val/Test划分为6:2:2，即训练集有10452条数据，验证集和测试集分别有3484条数据。
+## Overview
+The topic of this course practice is multivariate time series forecasting based on sequence models. We use three methods to accomplish this task: LSTM, Transformer, and xxxx. The relevant models and code are in the corresponding folders.
+## Dataset
+The dataset used in this project is from [code](https://github.com/zhouhaoyi/Informer2020). We choose ETTh1.csv as our dataset. The dataset contains 17,420 entries, each of which contains 8-dimensional features, including date, the predicted value "Oil Temperature (OT)", and 6 different types of external load values. Train/Val/Test is splited into 6:2:2, which means that the training set has 10,452 entries, and the validation and test sets have 3484 entries each.
 ## Acknowledgements
 We would like to thank Hujiang Huang and Zhiwei Zhu for their support and advices in our project.
 ## Contact
