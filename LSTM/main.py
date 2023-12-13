@@ -8,8 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
 import os
-
-#import matplotlib as plot
+import matplotlib as plot
 
 from torch.nn.parallel import DataParallel
  
@@ -42,21 +41,15 @@ setup_seed(10)
 # 读取数据
 df = pd.read_csv("ETTh1.csv", parse_dates=["date"])
 
-#print(df)
-
 # 数据集划分
 boundary_date_train = pd.to_datetime("2017/9/9 11:00")  # train/val/test=6:2:2
 mask_train = df["date"] <= boundary_date_train
 train = df.loc[mask_train].iloc[:, 1:]  # 得到训练集，其中iloc[:, 1:]表示排除掉第一列date
 
-#print(train)
 
 boundary_date_val = pd.to_datetime("2018/2/1 15:00")
 mask_val = (df['date'] > boundary_date_train) & (df['date'] <= boundary_date_val)
 val = df.loc[mask_val].iloc[:, 1:] 
-
-#print(val)
-
 
 # 对数据集进行归一化
 scaler = MinMaxScaler()
@@ -65,16 +58,10 @@ scaler.fit(train)
 scaler_train.fit(train.iloc[:, :1])
 normalized_data = scaler.transform(df.iloc[:, 1:])  # 用训练集作模板归一化整个数据集
 
-# print(normalized_data)
-
-# file = "normalized_data.txt"
-
-# np.savetxt(file, normalized_data)
 
 # 基础参数设置
 time_step = 96  # 时间步长，就是利用多少组历史数据进行预测
 forecast_step = 96  # 预测步长，即预测未来第几步的数据
-# forecast_step = 336
 feature_size = 7  # 输入特征数
 
 
@@ -82,15 +69,6 @@ feature_size = 7  # 输入特征数
 [train_input, train_output, val_input, val_output, test_input, test_output] = sliding_window(normalized_data, len(train), len(val), time_step,
                                                                       forecast_step, feature_size,
                                                                        sample_feature_compression=False)
-#print(train_input)
-# print(train_output)
-
-# print(val_input.shape)
-# print(val_output.shape)
-
-# print(test_input.shape)
-# print(test_output.shape)
-
 
 # 输入、输出维度
 input_dim = len(train_input[0, 0, :])
@@ -107,29 +85,6 @@ train_labels = torch.from_numpy(train_output).cuda()
 val_inputs_tensor = torch.from_numpy(val_input).cuda()
 val_labels = torch.from_numpy(val_output).cuda()
 test_inputs_tensor = torch.from_numpy(test_input).cuda()
-
-
-
-
-# 将输入数据移到多个GPU上
-# train_inputs_tensor = train_inputs_tensor.cuda()
-# train_labels = train_labels.cuda()
-# val_inputs_tensor = val_inputs_tensor.cuda()
-# val_labels = val_labels.cuda()
-# test_inputs_tensor = test_inputs_tensor.cuda()
-
-# 将模型移到多个GPU上
-#model = DataParallel(model, device_ids=device_ids)
-
-# print(train_inputs_tensor.size())
-# print(train_labels.size())
-# print(val_inputs_tensor.size())
-# print(val_labels.size())
-# print(test_inputs_tensor.size())
-
-# model = LSTM(input_dim, hidden_dim, output_dim).to(device)
-# train_outputs_tensor = model(train_inputs_tensor)
-# print(train_outputs_tensor.size())
 
 
 # 指定参数和损失函数
