@@ -1,5 +1,3 @@
-# coding=UTF-8
-
 import torch.nn
 import time
 import pandas as pd
@@ -8,20 +6,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
 import os
-import matplotlib as plot
-
+import matplotlib.pyplot as plt
 from torch.nn.parallel import DataParallel
  
-from Function import setup_seed, sliding_window, cmpt_error  # 这部分自己写的函数
+from Function import setup_seed, sliding_window
 
-torch.cuda.set_device(4)
-os.environ['CUDA_VISIBLE_DEVICES']='4,5,6,7'
-
-if torch.cuda.device_count() > 1:
-    print("使用多个GPU.")
-
-device_ids = [4, 5, 6, 7]  # 选择要使用的GPU设备编号
  
+torch.cuda.set_device(0)
+os.environ['CUDA_VISIBLE_DEVICES']='0,1,2,3,4,5,6,7'
+
+
+device_ids = [0, 1, 2, 3, 4, 5, 6, 7]  # 选择要使用的GPU设备编号
  
 # 定义LSTM主模型
 class LSTM(nn.Module):
@@ -46,10 +41,10 @@ boundary_date_train = pd.to_datetime("2017/9/9 11:00")  # train/val/test=6:2:2
 mask_train = df["date"] <= boundary_date_train
 train = df.loc[mask_train].iloc[:, 1:]  # 得到训练集，其中iloc[:, 1:]表示排除掉第一列date
 
-
 boundary_date_val = pd.to_datetime("2018/2/1 15:00")
 mask_val = (df['date'] > boundary_date_train) & (df['date'] <= boundary_date_val)
 val = df.loc[mask_val].iloc[:, 1:] 
+
 
 # 对数据集进行归一化
 scaler = MinMaxScaler()
@@ -70,14 +65,13 @@ feature_size = 7  # 输入特征数
                                                                       forecast_step, feature_size,
                                                                        sample_feature_compression=False)
 
+
 # 输入、输出维度
 input_dim = len(train_input[0, 0, :])
 output_dim = 7
 hidden_dim = 20  # 炼丹
 torch.set_default_tensor_type(torch.DoubleTensor)
- 
-# 使用GPU运行
-#device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
+
  
 # 将输入转换为tensor, 并转移到多个GPU上
 train_inputs_tensor = torch.from_numpy(train_input).cuda()
@@ -88,7 +82,7 @@ test_inputs_tensor = torch.from_numpy(test_input).cuda()
 
 
 # 指定参数和损失函数
-epochs = 8000  # 迭代次数
+epochs = 4000  # 迭代次数
 learning_rate = 0.003  # 学习率
  
 # 多次运行，方便求误差平均值
@@ -97,16 +91,17 @@ prediction_set = []
 error = []
 start = time.perf_counter()  # 运行开始时间
 
-save_dir = "checkpoints"
+save_dir = "checkpoints_96"
 
-# 多次运行取平均值
+
 multi_times = 5   # 运行次数
 for times in range(multi_times):
+
+    train_losses_96 = []  #存储训练集的损失
+    val_losses_96 = []   # 存储验证集的损失
+
     model = LSTM(input_dim, hidden_dim, output_dim)
     model = DataParallel(model, device_ids = device_ids).cuda()
-    if times == 0:
-        print(model)   # 查看神经网络模型
-        print()
     
     print("第"+str(times+1)+"次运行: ")
     print("-------------------------")
@@ -121,10 +116,8 @@ for times in range(multi_times):
         optimizer.zero_grad()
         train_outputs_tensor = model(train_inputs_tensor)
         loss = criterion(train_outputs_tensor, train_labels)
-        # #print(loss)
 
-        # loss_scalar = loss.item()
-        # loss_str = str(loss_scalar)
+        train_losses_96.append(loss.item())
 
         loss.backward()
         optimizer.step()
@@ -139,15 +132,24 @@ for times in range(multi_times):
         val_outputs_tensor = model(val_inputs_tensor)
         val_loss = criterion(val_outputs_tensor, val_labels)
 
-        # val_loss_scalar = val_loss.item()
-        # val_loss_str = str(val_loss_scalar)
+        val_losses_96.append(val_loss.item())
 
         if (epoch + 1) % 100 == 0:
             print(f'Validation loss at epoch {epoch + 1}: {val_loss}')
             print()
             print()
+
+    plt.figure(figsize=(50, 35))
+    plt.plot(train_losses_96, label='Train Loss')
+    plt.plot(val_losses_96, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss Over Epochs')
+    plt.legend()
+    plt.savefig(f'Figure_96/figure{times+1}.png', format='png')
+    #plt.show()
     
-    save_path = os.path.join(save_dir, f'model_{times+1}.pth')
+    save_path = os.path.join(save_dir, f'model_96_{times+1}.pth')
     torch.save(model.state_dict(), save_path)
 
     print()
@@ -155,35 +157,28 @@ for times in range(multi_times):
  
 # 预测结果
 predicted = model(test_inputs_tensor).detach().cpu().numpy()
-
-# 逆缩放
-train_predicted = scaler_train.inverse_transform(train_predicted)  # 训练集预测数据
 predicted = scaler_train.inverse_transform(predicted)  # 预测值
 target = scaler_train.inverse_transform(test_output)  # 目标值
 
+predicted = np.array(predicted)
+target = np.array(target)
+
 # 计算误差
-error.append(cmpt_error(predicted, target))
-# 保存每次预测结果
-train_prediction_set.append(train_predicted)
-prediction_set.append(predicted)
+
+mse = ((predicted-target)**2).mean()
+print("MSE:", mse)
+
+mae = np.abs(predicted - target).mean()
+print("MAE:", mae)
+
+rmse = np.sqrt(((predicted - target) ** 2).mean())
+print("RMSE:", rmse)
+
+nrmse = rmse / (np.max(predicted) - np.min(predicted))
+print("NRMSE:", nrmse)
+
 
 end = time.perf_counter()  # 运行结束时间
 runTime = end - start
 print("Run time: ", runTime)  # 输出运行时间
  
-# 数据排序
-train_prediction_set = np.array(train_prediction_set)[:, :, 0].T
-prediction_set = np.array(prediction_set)[:, :, 0].T
-error = np.array(error).T
-prediction_set = np.vstack([train_prediction_set, prediction_set])
-error_prediction = pd.DataFrame(np.vstack([error, prediction_set]))  # 将误差和预测数据堆叠起来，方便排序
-error_prediction = error_prediction.sort_values(by=2, axis=1)  # NRMSE在第三行，以NRMSE从小到大排序
- 
-# 保存数据
-# error_prediction.iloc[3:, :]是因为前三行是误差，如果用了更多的误差指标记得修改
-prediction_set = pd.DataFrame(np.array(error_prediction.iloc[3:, :]), columns=[i for i in range(1, multi_times + 1)])
-error = pd.DataFrame(np.array(error_prediction.iloc[:3, :]), columns=[i for i in range(1, multi_times + 1)],
-                     index=['MAE', 'RMSE', 'NRMSE'])
-prediction_set.to_excel('LSTM.xlsx', index=False, sheet_name='LSTM')
-with pd.ExcelWriter('LSTM.xlsx', mode='a', engine='openpyxl') as writer:
-    error.to_excel(writer, sheet_name='error')
