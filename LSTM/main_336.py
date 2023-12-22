@@ -24,11 +24,13 @@ class LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers=1):
         super(LSTM, self).__init__()
         self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers) 
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers)
+        self.dropout = nn.Dropout(p=0.2) 
         self.fc = nn.Linear(hidden_size, output_size)
  
     def forward(self, x):
         out, _ = self.lstm(x)
+        out = self.dropout(out)
         out = self.fc(out[:, -1, :])
         return out
 
@@ -46,13 +48,7 @@ boundary_date_val = pd.to_datetime("2018/2/1 15:00")
 mask_val = (df['date'] > boundary_date_train) & (df['date'] <= boundary_date_val)
 val = df.loc[mask_val].iloc[:, 1:] 
 
-
-# 对数据集进行归一化
-scaler = MinMaxScaler()
-scaler_train = MinMaxScaler()
-scaler.fit(train)
-scaler_train.fit(train.iloc[:, :1])
-normalized_data = scaler.transform(df.iloc[:, 1:])  # 用训练集作模板归一化整个数据集
+normalized_data = df.iloc[:, 1:].values
 
 
 # 基础参数设置
@@ -70,7 +66,7 @@ feature_size = 7  # 输入特征数
 # 输入、输出维度
 input_dim = len(train_input[0, 0, :])
 output_dim = 7
-hidden_dim = 20  # 炼丹
+hidden_dim = 64  # 炼丹
 torch.set_default_tensor_type(torch.DoubleTensor)
  
  
@@ -83,8 +79,8 @@ test_inputs_tensor = torch.from_numpy(test_input).cuda()
 
 
 # 指定参数和损失函数
-epochs = 4000  # 迭代次数
-learning_rate = 0.003  # 学习率
+epochs = 250 # 迭代次数
+learning_rate = 0.01  # 学习率
  
 # 多次运行，方便求误差平均值
 train_prediction_set = []
@@ -124,7 +120,7 @@ for times in range(multi_times):
         loss.backward()
         optimizer.step()
 
-        if (epoch + 1) % 100 == 0:    # 每100次训练输出一次损失值
+        if (epoch + 1) % 10 == 0:    # 每10次训练输出一次损失值
             print(f'Training loss at epoch {epoch + 1}, loss {loss}')
             print("-------------------------------")
         if epoch == epochs - 1:
@@ -136,18 +132,21 @@ for times in range(multi_times):
 
         val_losses_336.append(val_loss.item())
 
-        if (epoch + 1) % 100 == 0:
+        if (epoch + 1) % 10 == 0:
             print(f'Validation loss at epoch {epoch + 1}: {val_loss}')
             print()
             print()
 
-    plt.figure(figsize=(50, 35))
-    plt.plot(train_losses_336, label='Train Loss')
-    plt.plot(val_losses_336, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss Over Epochs')
+    plt.figure(figsize=(70, 40))
+    plt.plot(train_losses_336, label='Train Loss', linewidth=7)
+    plt.plot(val_losses_336, label='Validation Loss', linewidth=7)
+    plt.tick_params(axis='both', labelsize=50)
+    # ax.tick_params()
+    plt.xlabel('Epoch',fontsize=60)
+    plt.ylabel('Loss', fontsize = 60)
+    # plt.title('Training and Validation Loss Over Epochs')
     plt.legend()
+    plt.legend(prop={'size': 50}) 
     plt.savefig(f'Figure_336/figure{times+1}.png', format='png')
     #plt.show()
     
@@ -159,25 +158,23 @@ for times in range(multi_times):
  
 # 预测结果
 predicted = model(test_inputs_tensor).detach().cpu().numpy()
-predicted = scaler_train.inverse_transform(predicted)  # 预测值
-target = scaler_train.inverse_transform(test_output)  # 目标值
+target = test_output  # 目标值
 
 predicted = np.array(predicted)
 target = np.array(target)
 
 # 计算误差
-
 mse = np.mean((predicted-target)**2)
 print("MSE:", mse)
 
 mae = np.abs(predicted - target).mean()
 print("MAE:", mae)
 
-rmse = np.sqrt(((predicted - target) ** 2).mean())
-print("RMSE:", rmse)
+# rmse = np.sqrt(((predicted - target) ** 2).mean())
+# print("RMSE:", rmse)
 
-nrmse = rmse / (np.max(predicted) - np.min(predicted))
-print("NRMSE:", nrmse)
+# nrmse = rmse / (np.max(predicted) - np.min(predicted))
+# print("NRMSE:", nrmse)
 
 end = time.perf_counter()  # 运行结束时间
 runTime = end - start
