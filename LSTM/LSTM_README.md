@@ -21,4 +21,4 @@ scikit-learn == 1.3.2
 
 ## Training resources
 
-我们在八张NVIDIA GeForce RTX 3090上并行训练，默认训练轮数为5000轮，训练时长大概需要60分钟左右。
+我们在八张NVIDIA GeForce RTX 3090上并行训练，默认训练轮数为250轮，总共训练5次，取最终结果的平均值，训练时长大概需要10-15分钟左右。
