@@ -7,4 +7,4 @@ The dataset used in this project is from [code](https://github.com/zhouhaoyi/Inf
 ## Acknowledgements
 We would like to thank [Hujiang Huang](https://github.com/baizangchuan) and [Zhiwei Zhu](https://github.com/llzhuzw) for their support and advices in our project.
 ## Contact
-If you have any questions, please feel free to contact `wrchen2023@stu.suda.edu.cn`.
+If you have any questions, please feel free to contact `wrchen2023@stu.suda.edu.cn`. Have fun!
