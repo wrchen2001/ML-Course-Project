@@ -14,11 +14,12 @@
 
 ```
 pytorch == 1.7.1 + cu11.0
-numpy == 1.24.3
-pillow == 9.5.0
+numpy == 1.24.4
+pillow == 10.1.0
 scikit-learn == 1.3.2
 scipy == 1.10.1
 matplotlib == 3.7.4
+pandas == 2.0.3
 ```
 
 ## Training resources
